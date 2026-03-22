@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Switchshop — Pre-Survey Estimator v4</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f4f2;
+    --surface: #ffffff;
+    --surface2: #f0f0ee;
+    --border: #e2e2de;
+    --orange: #e05c00;
+    --orange-light: #f07030;
+    --orange-bg: #fff4ed;
+    --dark: #1a1a1a;
+    --mid: #555;
+    --dim: #888;
+    --muted: #bbb;
+    --green: #1a7a4a;
+    --green-bg: #eaf5ee;
+    --amber: #9a6000;
+    --amber-bg: #fff8e6;
+    --text: #222;
+    --mono: 'Inter', sans-serif;
+    --display: 'Barlow Condensed', sans-serif;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; font-size: 14px; }
+
+  /* HEADER */
+  header {
+    background: var(--dark); padding: 0 32px; height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo-wrap img { height: 36px; display: block; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .header-tag {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: rgba(255,255,255,0.4);
+    border: 1px solid rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 4px;
+  }
+  .new-btn {
+    font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.6);
+    background: transparent; border: 1px solid rgba(255,255,255,0.2);
+    padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.15s; display: none;
+  }
+  .new-btn:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+  .new-btn.visible { display: block; }
+
+  /* LAYOUT */
+  .app-layout { display: grid; grid-template-columns: 1fr 440px; height: calc(100vh - 60px); }
+
+  /* CHAT PANEL */
+  .chat-panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--surface); }
+  .chat-topbar {
+    padding: 14px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .chat-topbar-title { font-family: var(--display); font-size: 17px; font-weight: 700; letter-spacing: 0.02em; color: var(--dark); }
+  .chat-topbar-sub { font-size: 11px; color: var(--dim); margin-top: 2px; }
+  .progress-pill {
+    font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 20px;
+    background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(224,92,0,0.2); display: none;
+  }
+  .progress-pill.visible { display: block; }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 20px 24px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .msg { display: flex; gap: 10px; animation: msgIn 0.25s ease; }
+  @keyframes msgIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  .msg.user { flex-direction: row-reverse; }
+  .msg-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; flex-shrink: 0; margin-top: 2px; font-weight: 700;
+  }
+  .msg-avatar.ai { background: var(--dark); color: #fff; font-family: var(--display); font-size: 13px; }
+  .msg-avatar.user { background: var(--orange); color: #fff; font-size: 13px; }
+  .msg-bubble {
+    max-width: 78%; padding: 11px 15px; border-radius: 12px;
+    font-size: 13.5px; line-height: 1.6;
+  }
+  .msg.ai .msg-bubble {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px 12px 12px 12px; color: var(--text);
+  }
+  .msg.user .msg-bubble { background: var(--orange); color: #fff; border-radius: 12px 4px 12px 12px; }
+
+  .quick-replies { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+  .qr-btn {
+    background: var(--surface); border: 1px solid var(--orange); color: var(--orange);
+    padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.12s;
+  }
+  .qr-btn:hover { background: var(--orange); color: #fff; }
+
+  .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 2px 0; }
+  .typing-dot { width: 6px; height: 6px; background: var(--dim); border-radius: 50%; animation: typeBounce 1.2s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typeBounce { 0%,60%,100% { transform:translateY(0); opacity:0.5; } 30% { transform:translateY(-5px); opacity:1; } }
+
+  .chat-input-wrap {
+    padding: 14px 24px; border-top: 1px solid var(--border);
+    background: var(--surface); display: flex; gap: 8px; align-items: flex-end;
+  }
+  .chat-input {
+    flex: 1; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; color: var(--text);
+    font-family: var(--mono); font-size: 13.5px; resize: none; outline: none;
+    min-height: 42px; max-height: 110px; overflow-y: auto; transition: border-color 0.15s;
+  }
+  .chat-input:focus { border-color: var(--orange); }
+  .chat-input::placeholder { color: var(--muted); }
+  .send-btn {
+    width: 42px; height: 42px; background: var(--orange); border: none;
+    border-radius: 10px; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; color: #fff; font-size: 16px; transition: all 0.15s; flex-shrink: 0;
+  }
+  .send-btn:hover { background: var(--orange-light); }
+  .send-btn:disabled { opacity: 0.35; cursor: default; }
+
+  /* ESTIMATE PANEL */
+  .estimate-panel { display: flex; flex-direction: column; background: var(--bg); }
+  .est-topbar {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .est-topbar-title { font-family: var(--display); font-size: 17px; font-weight: 700; letter-spacing: 0.02em; color: var(--dark); }
+  .est-status { font-size: 11px; color: var(--dim); margin-top: 2px; }
+
+  .est-body { flex: 1; overflow-y: auto; padding: 18px; }
+  .est-body::-webkit-scrollbar { width: 4px; }
+  .est-body::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* PLACEHOLDER */
+  .est-placeholder {
+    height: 100%; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; color: var(--muted); gap: 14px; padding: 40px 20px;
+  }
+  .est-placeholder-icon {
+    width: 64px; height: 64px; background: var(--surface); border: 2px dashed var(--border);
+    border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 28px;
+  }
+
+  /* PROGRESS TRACKER */
+  .progress-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; margin-bottom: 12px; display: none; box-shadow: var(--shadow);
+  }
+  .progress-card.visible { display: block; }
+  .progress-card-title {
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 12px;
+  }
+
+  /* SECTION PROGRESS */
+  .section-group { margin-bottom: 10px; }
+  .section-group-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--orange); margin-bottom: 6px; padding-bottom: 4px;
+    border-bottom: 1px solid var(--orange-bg);
+  }
+  .prog-steps { display: flex; flex-direction: column; gap: 4px; }
+  .prog-step { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .prog-step.done { color: var(--green); }
+  .prog-step.active { color: var(--dark); font-weight: 500; }
+  .prog-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: all 0.2s; }
+  .prog-step.done .prog-dot { background: var(--green); }
+  .prog-step.active .prog-dot { background: var(--orange); box-shadow: 0 0 0 3px rgba(224,92,0,0.15); }
+
+  /* ESTIMATE RESULT */
+  .est-result { display: none; }
+  .est-result.visible { display: block; animation: msgIn 0.35s ease; }
+
+  .est-ready-badge {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--green);
+    background: var(--green-bg); border: 1px solid rgba(26,122,74,0.2);
+    padding: 4px 12px; border-radius: 20px; margin-bottom: 14px;
+  }
+
+  /* CLIENT CARD */
+  .client-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; margin-bottom: 12px; box-shadow: var(--shadow);
+  }
+  .client-card-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--orange); margin-bottom: 10px;
+  }
+  .client-rows { display: flex; flex-direction: column; gap: 4px; }
+  .client-row { display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .client-row:last-child { border-bottom: none; }
+  .cr-label { color: var(--dim); }
+  .cr-value { font-weight: 500; color: var(--dark); text-align: right; max-width: 55%; }
+
+  .est-job-meta { font-size: 11px; color: var(--dim); margin-bottom: 3px; font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase; }
+  .est-job-name { font-family: var(--display); font-size: 20px; font-weight: 700; letter-spacing: 0.01em; color: var(--dark); margin-bottom: 14px; line-height: 1.2; }
+
+  .headline-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .h-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; box-shadow: var(--shadow); }
+  .h-card.span2 { grid-column: 1 / -1; border-color: var(--orange); background: var(--orange-bg); }
+  .h-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 5px; }
+  .h-value { font-family: var(--display); font-size: 30px; font-weight: 800; letter-spacing: -0.01em; color: var(--orange); line-height: 1; }
+  .h-card:not(.span2) .h-value { font-size: 20px; color: var(--dark); }
+  .h-range { font-size: 10.5px; color: var(--dim); margin-top: 4px; font-weight: 500; }
+
+  .est-divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+  .detail-block { margin-bottom: 12px; }
+  .detail-block-title { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+  .detail-rows { display: flex; flex-direction: column; gap: 0; }
+  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+  .detail-row:last-child { border-bottom: none; }
+  .dr-label { color: var(--mid); }
+  .dr-value { font-weight: 500; color: var(--dark); text-align: right; max-width: 55%; }
+
+  /* ACCESS FLAGS */
+  .flags-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .flag {
+    font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
+    background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(154,96,0,0.2);
+  }
+  .flag.green { background: var(--green-bg); color: var(--green); border-color: rgba(26,122,74,0.2); }
+
+  .conf-wrap { margin-top: 6px; }
+  .conf-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); font-weight: 500; margin-bottom: 6px; }
+  .conf-bar { height: 7px; background: var(--surface2); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .conf-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #e05c00, #f07030); transition: width 1s cubic-bezier(0.22,1,0.36,1); }
+
+  .note-box { background: var(--amber-bg); border: 1px solid rgba(154,96,0,0.2); border-radius: 8px; padding: 11px 13px; font-size: 12.5px; color: var(--amber); line-height: 1.55; margin-top: 12px; }
+  .note-box strong { font-weight: 600; }
+
+  /* NEXT STEPS */
+  .next-steps-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; margin-top: 12px; box-shadow: var(--shadow);
+  }
+  .ns-title { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dark); margin-bottom: 10px; }
+  .ns-list { display: flex; flex-direction: column; gap: 6px; }
+  .ns-item { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: var(--mid); }
+  .ns-check { width: 16px; height: 16px; border: 1.5px solid var(--border); border-radius: 4px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ACTIONS */
+  .est-footer { padding: 14px 18px; border-top: 1px solid var(--border); background: var(--surface); display: flex; gap: 8px; }
+  .foot-btn { flex: 1; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.14s; border: none; text-align: center; }
+  .foot-btn.primary { background: var(--orange); color: #fff; }
+  .foot-btn.primary:hover { background: var(--orange-light); }
+  .foot-btn.secondary { background: transparent; color: var(--mid); border: 1.5px solid var(--border); }
+  .foot-btn.secondary:hover { border-color: var(--mid); color: var(--dark); }
+  #printBtn { display: none; }
+
+  /* PRINT */
+  @media print {
+    header, .chat-panel, .est-footer, .est-topbar, .progress-card, .est-placeholder { display: none !important; }
+    .app-layout { display: block; }
+    .estimate-panel { background: white; }
+    body { background: white; font-size: 11px; }
+    .est-body { padding: 28px 36px; }
+    .h-card, .client-card, .next-steps-card { border: 1px solid #ddd; box-shadow: none; }
+    .print-header { display: flex !important; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid #e05c00; }
+    .print-header img { height: 38px; }
+    .print-meta { text-align: right; font-size: 11px; color: #888; }
+  }
+  .print-header { display: none; }
+
+  @media (max-width: 860px) {
+    .app-layout { grid-template-columns: 1fr; height: auto; }
+    .chat-panel { height: 55vh; border-right: none; border-bottom: 1px solid var(--border); }
+    .estimate-panel { min-height: 45vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap"><img src="data:image/png;base64,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" alt="Switchshop"></div>
+  <div class="header-right">
+    <span class="header-tag">Pre-Survey Estimator</span>
+    <button class="new-btn" id="newBtn" onclick="resetConversation()">↺ New Estimate</button>
+  </div>
+</header>
+
+<div class="app-layout">
+  <!-- CHAT -->
+  <div class="chat-panel">
+    <div class="chat-topbar">
+      <div>
+        <div class="chat-topbar-title">AI Estimating Assistant</div>
+        <div class="chat-topbar-sub">Collects inquiry details + generates budget estimate</div>
+      </div>
+      <div class="progress-pill" id="progressPill">0 / 13</div>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-wrap">
+      <textarea class="chat-input" id="chatInput" placeholder="Type your answer…" rows="1"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ESTIMATE -->
+  <div class="estimate-panel">
+    <div class="est-topbar">
+      <div>
+        <div class="est-topbar-title">Inquiry & Estimate</div>
+        <div class="est-status" id="estStatus">Awaiting details…</div>
+      </div>
+    </div>
+
+    <div class="est-body" id="estBody">
+      <!-- Print header -->
+      <div class="print-header">
+        <img src="data:image/png;base64,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" alt="Switchshop IT Networking and Security">
+        <div class="print-meta">
+          <div style="font-weight:600;font-size:13px;color:#1a1a1a">Pre-Survey Budget Estimate</div>
+          <div id="printDate"></div>
+          <div style="margin-top:4px;color:#e05c00;font-weight:600">INTERNAL USE ONLY</div>
+        </div>
+      </div>
+
+      <div class="est-placeholder" id="estPlaceholder">
+        <div class="est-placeholder-icon">📋</div>
+        <div style="font-size:13px;line-height:1.6;max-width:210px;">Answer the questions on the left to build the inquiry record and generate a budget estimate</div>
+      </div>
+
+      <div class="progress-card" id="progressCard">
+        <div class="progress-card-title">Capturing Inquiry</div>
+        <div id="progSections"></div>
+      </div>
+
+      <div class="est-result" id="estResult">
+        <div class="est-ready-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          Inquiry Complete
+        </div>
+
+        <!-- CLIENT INFO CARD -->
+        <div class="client-card" id="clientCard" style="display:none">
+          <div class="client-card-title">📁 Client Information</div>
+          <div class="client-rows" id="clientRows"></div>
+        </div>
+
+        <div class="est-job-meta" id="rCustomer">—</div>
+        <div class="est-job-name" id="rJobTitle">—</div>
+
+        <!-- COST HEADLINE -->
+        <div class="headline-grid">
+          <div class="h-card span2">
+            <div class="h-label">Estimated Project Cost (exc. VAT)</div>
+            <div class="h-value" id="rCost">£—</div>
+            <div class="h-range" id="rCostRange">Range: £— – £—</div>
+          </div>
+          <div class="h-card">
+            <div class="h-label">Est. Duration</div>
+            <div class="h-value" id="rDays">—</div>
+            <div class="h-range" id="rDaysRange">—</div>
+          </div>
+          <div class="h-card">
+            <div class="h-label">Install Type</div>
+            <div class="h-value" style="font-size:14px;padding-top:6px;line-height:1.3;" id="rType">—</div>
+          </div>
+        </div>
+
+        <hr class="est-divider">
+
+        <!-- TECHNICAL SUMMARY -->
+        <div class="detail-block">
+          <div class="detail-block-title">Technical Summary</div>
+          <div class="detail-rows" id="rDetails"></div>
+        </div>
+
+        <!-- ACCESS FLAGS -->
+        <div class="detail-block" id="accessBlock" style="display:none">
+          <div class="detail-block-title">Site Access & Requirements</div>
+          <div class="flags-row" id="accessFlags"></div>
+        </div>
+
+        <hr class="est-divider">
+
+        <!-- CONFIDENCE -->
+        <div class="detail-block">
+          <div class="detail-block-title">Estimate Confidence</div>
+          <div class="conf-wrap">
+            <div class="conf-row"><span>Lower</span><span id="confPct">—</span><span>Higher</span></div>
+            <div class="conf-bar"><div class="conf-fill" id="confFill" style="width:0%"></div></div>
+          </div>
+        </div>
+
+        <div class="note-box" id="rNote"></div>
+
+        <!-- NEXT STEPS -->
+        <div class="next-steps-card" id="nextStepsCard" style="display:none">
+          <div class="ns-title">Next Steps</div>
+          <div class="ns-list" id="nextStepsList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="est-footer">
+      <button class="foot-btn secondary" onclick="resetConversation()">↺ New Inquiry</button>
+      <button class="foot-btn primary" id="printBtn" onclick="window.print()">⬇ Save / Print PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let API_KEY = '';
+
+// ═══════════════════════════════════════════
+// PROGRESS STEPS — mirrors the inquiry form sections
+// ═══════════════════════════════════════════
+const SECTIONS = [
+  {
+    title: 'Block 1 — Client Details',
+    steps: ['Company name & contact person', 'Email, phone & sector']
+  },
+  {
+    title: 'Block 2 — Project Overview',
+    steps: ['Site address, building type & floors', 'Timeline & completion target']
+  },
+  {
+    title: 'Block 3 — What\'s Being Installed',
+    steps: ['Installation type (Cat6a / fibre / WAPs)', 'Number of drops / data points', 'Existing infrastructure & floor plans']
+  },
+  {
+    title: 'Block 4 — How It\'s Installed',
+    steps: ['Cable route (high / low level)', 'Run lengths & building size', 'Comms rooms & patch panels']
+  },
+  {
+    title: 'Block 5 — Site Access & Logistics',
+    steps: ['Working hours, DBS & parking', 'Other access requirements']
+  },
+  {
+    title: 'Block 6 — Special Considerations',
+    steps: ['Listed buildings, hazards & notes']
+  }
+];
+
+// ═══════════════════════════════════════════
+// SYSTEM PROMPT
+// ═══════════════════════════════════════════
+const SYSTEM_PROMPT = `You are Switchshop's internal AI assistant. You help the sales team capture a complete initial inquiry record AND generate a pre-survey budget estimate in one conversation.
+
+Switchshop is a UK data cabling and IT networking company based in Milton Keynes.
+
+YOUR DUAL PURPOSE:
+1. Collect all fields from Switchshop's standard Initial Inquiry Form
+2. Gather the technical detail needed to generate an accurate budget estimate
+3. Output a single structured JSON at the end covering both
+
+════════════════════════════════════════════
+CONVERSATION FLOW — CRITICAL RULES
+════════════════════════════════════════════
+
+1. Ask questions in GROUPED BLOCKS — finish one topic completely before moving to the next. Never jump between unrelated topics (e.g. don't ask about parking then fibre type then DBS).
+2. You may combine 2 closely related questions in one message if they belong to the same topic and it reads naturally — but never more than 2.
+3. Follow this exact order of grouped blocks:
+
+━━━ BLOCK 1 — WHO ARE THEY? (Client basics) ━━━
+Ask as TWO separate messages — do not combine these into one:
+Message 1 (send first, wait for reply): Ask for the company / school / organisation name AND the main contact person's name only.
+Message 2 (after they reply): Ask for the contact's email address, phone number, and industry sector (Education, Healthcare, Commercial office, Retail, Hospitality, etc.).
+
+━━━ BLOCK 2 — WHAT IS THE PROJECT? (Project overview) ━━━
+Ask as THREE separate messages — do not combine these:
+Message 1: Ask for the site postcode only. Do NOT ask for the full address at this stage.
+Message 2 (after they reply): Ask about the building setup — building type (single building, multi-building campus, hospital, warehouse, etc.) and roughly how many floors.
+Message 3 (after they reply): Ask when they are looking to start and what the deadline or target completion date is.
+
+━━━ BLOCK 3 — WHAT DO THEY NEED INSTALLED? (Technical scope) ━━━
+→ What type of installation? (Cat6, Cat6a, fibre optic between buildings, WAP/wireless, comms room build, or a mix — if unsure, describe what they're trying to achieve)
+→ Approximately how many data points / network outlets are needed? (or WAPs, or fibre cores if fibre job)
+→ Is there any existing infrastructure we're working with or replacing? (e.g. old Cat5e, existing containment/cable trays, existing comms room)
+→ Are floor plans or building drawings available?
+
+━━━ BLOCK 4 — HOW DOES THE CABLE GET INSTALLED? (Technical method) ━━━
+→ Will the cable mainly run through suspended ceilings (HIGH level) or through surface trunking/dado trunking/underfloor (LOW level)? Or a mix?
+→ What's the approximate average cable run length from the comms room to the furthest outlet? If unsure, what is the rough size of the building in metres?
+→ How many comms rooms or patch panel locations will be needed?
+
+━━━ BLOCK 5 — SITE ACCESS & LOGISTICS ━━━
+Ask all access questions together in one flowing message — this is a single topic:
+→ Are there any restrictions on when we can work? (Normal office hours fine, or school holidays only, out of hours, weekends, etc.)
+→ Will a DBS check or any security clearance be required for the team?
+→ Is there parking on site?
+→ Any other access requirements we should know about? (sign in at reception, accompanied at all times, specific restricted areas, health & safety induction needed, working at height risk assessment, etc.)
+
+━━━ BLOCK 6 — ANYTHING ELSE? (Special considerations) ━━━
+→ Is it a listed building, or are there any particularly complex areas (infection control zones, live data centre, hazardous areas)?
+→ Any other notes or preferences the customer has mentioned?
+
+Once all blocks are covered, produce the estimate JSON immediately — do not ask any further questions.
+
+DISTANCE CALCULATION — DO NOT ASK THE CUSTOMER:
+Switchshop's postcode is MK16 9PY (Newport Pagnell, Milton Keynes). When the customer provides their site postcode, automatically estimate the ROAD distance (not straight-line) from MK16 9PY using your knowledge of UK geography.
+
+Use these confirmed road distances from MK16 9PY as reference anchors:
+- Northampton (NN postcodes): ~15 miles
+- Bedford (MK40–MK45): ~18 miles
+- Luton (LU postcodes): ~25 miles
+- Coventry (CV postcodes): ~45 miles
+- Oxford (OX postcodes): ~45 miles
+- Reading (RG postcodes): ~55 miles — NOTE: Sonning Common (RG4 9RJ) is approximately 55–60 miles, NOT 15 miles
+- London (all EC, WC, N, E, SE, SW, W, NW postcodes): ~60 miles
+- Birmingham (B postcodes): ~65 miles
+- Bristol (BS postcodes): ~100 miles
+- Manchester (M postcodes): ~145 miles
+- Leeds (LS postcodes): ~150 miles
+
+Use this to calculate the travel cost band:
+- Local (<15 miles): +£10–25/day travel
+- Medium (15–50 miles): +£25–60/day travel
+- Long (50–100 miles): +£60–120/day travel
+- Very long (100+ miles): +£120–170/day travel
+Include the estimated distance and travel cost band in the estimate details. If no postcode is given but a town/city is mentioned, estimate distance from that.
+
+After all sections are covered, produce your output using EXACTLY this JSON format:
+
+\`\`\`estimate
+{
+  "customer": "Company Name",
+  "site": "Town / Postcode",
+  "jobTitle": "e.g. Cat6a & Fibre Installation — 3-building school campus, 120 drops",
+  "installationType": "Cat6a / Fibre OM4 / Mixed",
+  "quoteRef": "ADI-2024-XXX",
+
+  "clientInfo": {
+    "contactName": "John Smith",
+    "contactEmail": "j.smith@example.com",
+    "contactPhone": "01234 567890",
+    "sector": "Education",
+    "address": "Full site address",
+    "timeline": "Start Jan 2024, complete by Easter",
+    "floorPlans": true,
+    "existingInfrastructure": "Cat5e to be replaced"
+  },
+
+  "access": {
+    "workingHours": "School holidays and weekends only",
+    "parking": true,
+    "dbsRequired": true,
+    "accessNotes": "Sign in at reception, accompanied in certain areas"
+  },
+
+  "costMid": 32000,
+  "costLow": 27000,
+  "costHigh": 40000,
+  "durationMid": "18 days",
+  "durationLow": "15 days",
+  "durationHigh": "22 days",
+  "confidence": 68,
+
+  "details": [
+    {"label": "Data points / drops", "value": "120 outlets"},
+    {"label": "Cable type", "value": "Cat6a"},
+    {"label": "Fibre", "value": "Between 3 buildings (OM4 multimode)"},
+    {"label": "Installation level", "value": "Mixed — high + low level"},
+    {"label": "Avg cable run", "value": "~40m estimated"},
+    {"label": "Buildings / floors", "value": "3 buildings, 2 floors each"},
+    {"label": "Comms rooms", "value": "3 rooms (one per building)"},
+    {"label": "WAPs", "value": "Wireless survey required"},
+    {"label": "Environment", "value": "School campus, holidays/weekends only"},
+    {"label": "Travel", "value": "~0 miles from MK16 9PY (local — est. +£15/day)"}
+  ],
+
+  "nextSteps": [
+    "Schedule site survey",
+    "Request floor plans and existing infrastructure drawings",
+    "Prepare formal budget estimate",
+    "Check team DBS status",
+    "Review school term dates for access planning"
+  ],
+
+  "caveat": "Budget estimate based on comparable Switchshop jobs. Key assumptions: [list 2-3]. Formal quotation following site survey may vary significantly for a multi-building campus."
+}
+\`\`\`
+
+After the JSON block, write a brief friendly summary (2-3 sentences) noting whether this looks like a good fit for Switchshop, any cost or access flags to be aware of, and confirming the suggested next steps.
+
+════════════════════════════════════════════
+SWITCHSHOP PRICING — REAL JOB DATA (72 jobs)
+════════════════════════════════════════════
+
+LABOUR RATES (actual charge-out):
+- Senior Engineer weekday (NWH): £37.50/hr
+- Junior Engineer weekday (NWH): £25.55/hr
+- Senior Engineer Saturday: £48.93/hr
+- Senior Engineer Sunday: £51.78/hr
+- 2-man crew weekday = ~£504/day
+- 2-man crew Saturday = ~£588/day
+- Wireless Site Survey: £400 flat rate
+
+━━━ CAT6 — ACTUAL JOBS (cost/drop inc. labour + materials + travel) ━━━
+LOW LEVEL (surface trunking, dado, underfloor):
+- 41 drops, empty office, dado, 30m runs, 10 miles: £2,388 = £58/drop, 2 days
+- 53 drops, school, suspended/trunking, 36m, 25 miles: £3,552 = £67/drop, 3 days
+- 12 drops, school, suspended/dado, 40m, 20 miles: £832 = £69/drop, 1 day
+- 8 drops, school, dado, 30m, 25 miles: £700 = £88/drop, 1 day
+- 10 drops, school, trunking/external, 40m, 20 miles: £1,578 = £158/drop, 2 days
+- 8 drops, school, suspended/external, 50m, 20 miles: £969 = £121/drop, 1 day
+- 40 drops, small site, underfloor/suspended, 50m, 60 miles: £4,028 = £101/drop, 4 days
+
+HIGH LEVEL (suspended ceiling, basket, high-level routes):
+- 6 drops, school, suspended/external, 75m, 25 miles: £969 = £162/drop, 1 day
+- 27 drops, hospital, suspended/trunking, 50m, 20 miles: £5,585 = £207/drop, 8 days
+- 10 drops, hospital, suspended/basket, 50m, 20 miles: £1,583 = £158/drop, 2 days
+- 214 drops, building site, suspended/basket, 65m, 25 miles: £28,825 = £135/drop, 28 days
+
+Cat6 summary: 24+ jobs, cost/drop min=£58 mean=£164 max=£405
+Days/drop average: 0.18 (2-man crew)
+
+━━━ CAT6A — ACTUAL JOBS ━━━
+OFFICE / COMMERCIAL:
+- 30 drops, small site, tray, 30m, 25 miles: £3,100 = £103/drop, 3 days
+- 50 drops, empty office, dado, 30m, 60 miles: £4,982 = £100/drop, 4 days
+- 10 drops, occupied office, suspended/basket, 50m, 25 miles: £1,123 = £112/drop, 1 day
+- 282 drops, office 2nd floor/comms 1st floor, suspended ceiling, 50m, 25 miles: £32,017 = £114/drop, 31 days
+
+SCHOOL / EDUCATION:
+- 8 drops, school, suspended/basket, 90m runs, 15 miles: £1,840 = £230/drop, 2 days
+- 104 drops, school, suspended/dado, 50m, 170 miles (stayaway): £14,002 = £135/drop, 10 days
+- 114 drops, school HIGH LEVEL, suspended/basket, 50m, 88 miles, scaffold hired, school holidays only, 113 APs also installed: £26,932 = £236/drop, 31 days [Minster School]
+- 23 drops, school HIGH LEVEL, suspended/trunking, 50m, 70 miles (no existing routes): £9,316 = £405/drop — NOTE: extreme cost due to no existing cable routes
+
+HOSPITAL:
+- 4 drops, hospital, low level, short conduit run, 25 miles: £721 = £180/drop, 1 day [L&D Colorectal]
+- 8 drops, hospital low level, suspended/dado, 40m, 25 miles: £1,165 = £146/drop, 1 day
+- 16 drops, hospital low level, suspended/dado, 50m, 25 miles: £2,165 = £135/drop, 2 days
+- 20 drops, hospital low level, suspended/dado, 60m, 25 miles: £2,657 = £133/drop, 3 days
+- 10 drops, hospital HIGH LEVEL, suspended/basket, 30m, 25 miles: £2,417 = £242/drop, 3 days
+- 7 drops, hospital HIGH LEVEL, suspended/basket, 50m, 25 miles: £2,005 = £286/drop, 3 days
+- 4 drops, hospital HIGH LEVEL, suspended, 50m, 20 miles: £1,310 = £328/drop, 2 days
+- 8 drops, hospital OoH, suspended/basket, 30m, 25 miles: £2,267 = £283/drop, 2 days
+
+BUILDING SITE / LARGE:
+- 115 drops, building site, suspended/basket, 50m, 40 miles: £12,614 = £110/drop, 9 days
+- 125 drops, small site, underfloor/suspended, 40m, 40 miles: £12,199 = £98/drop, 8 days
+- 173 drops, building site, suspended/dado, 50m, 20 miles: £18,490 = £107/drop, 18 days
+- 255 drops, school site, suspended/dado, 50m, 15 miles: £22,600 = £89/drop, 14 days
+- 750 drops, small site, underfloor/suspended, 50m, 60 miles: £65,588 = £87/drop, 31 days
+- 51 drops, small site, suspended/basket, 50m, 25 miles: £5,661 = £111/drop, 5 days
+
+Cat6a summary: 24 jobs, cost/drop min=£87 mean=£176 max=£405
+Days/drop average: 0.18 (2-man crew)
+
+PRICING GUIDANCE:
+- Cat6a LOW LEVEL, standard environment: £87–£135/drop
+- Cat6a HIGH LEVEL, standard environment: £100–£145/drop
+- Cat6a hospital (any level): £133–£360/drop — use higher end for ≤10 drops; confirmed: 4 drops = £180/drop (L&D), 282 drops = £114/drop (Bedford Hospital)
+- Cat6a school, no existing cable routes: up to £400/drop — flag this risk
+- Cat6a school, standard with existing routes: £100–£236/drop depending on level/travel
+- Cat6a large jobs (100+ drops): economy of scale, rates move toward £87–£115/drop
+- Minimum job: ~£650
+- If no existing cable containment/routes — ADD 30–50% and flag explicitly
+- Cross-floor jobs (comms on different floor to outlets) — ADD 10–15%
+
+━━━ FIBRE OPTIC — ACTUAL JOBS ━━━
+- 8-core extend, site, 20m, 1 day: £550
+- 8-core cab-to-cab, hospital, externally clipped, 50m, 1 day: £1,358
+- 8-core OM4 termination only, London (congestion + parking), 60 miles, 1 day: £785 [National Gallery]
+- 12-core OM4 termination, exhibition centre, 1 day: £763–£785
+- 12-core OM4, building site, 1 day: £1,147
+- 2×8-core OM4, school, 135m, 3 days: £2,537
+- 8-core OM4 int/ext with roof tray + rooftop supports, primary school, 280m, 75 miles, 3 days: £3,062 [Sonning Common Primary School]
+- 16-core OM4, small site, 175m, 2 days: £2,336
+- 16-core OM4, school, 1 day: £1,695
+- 24-core cab-to-cab, school, 120m, 2 days: £2,500
+- 2×24-core OM4, building site, 120m, 3 days: £2,940
+- 12-core OM4, school, 300m incl. roof tray + underground duct, 3 days: £5,306
+- 48-core OM4, school, 300m incl. roof tray + underground duct, 4 days: £8,826
+- 96-core/24-port, data centre, underfloor, 3 days: £3,105
+- 288-core, data centre, underfloor, 7 days: £8,918
+- 576-core, data centre, underfloor, 7 days: £16,575
+
+Fibre guidance:
+- Termination only (8–12 core): £763–£785, 1 day
+- Simple short link (8–16 core, indoor): £550–£1,700, 1 day
+- Between-building link (12–24 core, 100–175m): £1,700–£2,940, 1–3 days
+- Between-building link with external roof tray + supports (8 core, 280m, long travel): £3,062, 3 days
+- Long/complex run with external tray/duct (12 core, 300m): £5,306, 3 days
+- Large OM4 (48 core, 300m with external works): £8,826, 4 days
+- Data centre (96+ core): £3,105–£16,575, 3–7 days
+
+━━━ WAP / AP MOUNTING — ACTUAL JOBS ━━━
+- 30 APs, school replacement, 2 days, 70 miles: £1,295 = £43/AP
+- 113 APs, exhibition centre replacement, scissor lift, 5 days: £4,050 = £36/AP
+- 257 APs, hospital new install + cable relocation, 49 days: £29,991 = £117/AP
+- 4 Cat6a AP drops (new cable runs), primary school, 75 miles, 3 days: £2,046 = £511/drop — NOTE: very high cost/drop reflects minimum 2-man crew + long travel on a small job [Sonning Common Primary School]
+- Wireless site survey: £400 flat rate
+
+WAP guidance:
+- Simple AP replacement (existing cable): £35–£45/AP
+- New AP with new Cat6a cable run: £80–£160/AP
+- Hospital environment (complex, ceiling, regs): £100–£150/AP
+- Working at height/scissor lift: add 20–30%
+- Small AP jobs (≤5 drops) with long travel (50+ miles): minimum effective cost £400–£600/drop — always flag and consider combining with other work on the same visit
+
+━━━ COMMS ROOMS &amp; CABINETS — ACTUAL JOBS ━━━
+- Wall-mounted 18U cabinet, school, 1 day: £970
+- Wall-mounted 21U cabinet, school, 1 day: £985
+- 4x floor-standing cabinets, hospital, 2 days: £4,382 = £1,095 each
+- 3x floor-standing cabinets with interconnect, building site, 3 days: £4,920 = £1,640 each
+- 1x 47U 800Wx800D floor-standing cabinet + containment + cable extensions + migration, hospital NHS (2 wall cabs consolidated into 1 floor-standing), includes high-level basket containment, fibre and copper extensions, re-termination, equipment migration with full port documentation, new patch leads: £7,063 [Microbiology, Bedfordshire NHS]
+- 1x wall-mounted relocation, hospital OoH, 1 day NWH + 2 days OoH: £4,182
+- Cabinet tidy + re-patch + switch install, 11 cabinets, school, 10 days (stayaway, 120 miles): £10,431 [Winterhill School]
+- Optional: cabinet hardware upgrades (3x 42U 800Wx800D floor-standing + 1x 42U 600Wx800D + 1x vertical wall-mount bracket) same school: additional £6,877
+- Cabinet labels (20 labels), hospital, 1 day: £1,290
+
+Comms room guidance:
+- Wall-mounted cabinet supply + install: £900–£1,100
+- Floor-standing cabinet supply + install (standard, local): £1,000–£1,700 each
+- Floor-standing cabinet upgrade (NHS hospital, 47U 800x800, incl. containment + migration): £7,000+
+- Full switch/patch re-organisation, 11 cabinets, school, stayaway: £10,431 (labour + travel + accommodation)
+- Optional cabinet hardware upgrades (3–5 cabinets): £5,000–£7,000 additional
+- Cabinet tidy + re-patch (local, no switches): £800–£1,500
+- Add new high-level basket containment within comms room: +£500–£1,500
+- Add fibre/copper cable extensions for cabinet relocation: +£500–£1,500
+
+━━━ TRAVEL (from MK16 9PY) ━━━
+- Local (<15 miles): +£10–25/day (mean from data: £40/day across all jobs)
+- Medium (15–50 miles): +£25–60/day
+- Long (50–100 miles): +£60–120/day
+- Very long / stayaway (100+ miles): +£120–170/day + accommodation costs
+- Flag stayaway requirement if 100+ miles — add accommodation note to estimate
+
+IMPORTANT RULES:
+- Always give a low/high range — round to nearest £50
+- Widen range if vague info (±20%), narrow if detailed (±10%)
+- ALWAYS flag if no existing cable routes/containment — this is a major cost driver
+- ALWAYS flag if cross-floor working (comms room on different floor)
+- Hospital jobs: always use upper end of range
+- School OoH/holiday-only: flag for scheduling, add 15–25% if weekend rates apply
+- Stayaway jobs (100+ miles): flag accommodation needed in next steps
+- Never fabricate prices — if unsure, widen the range and say so
+
+━━━ SWITCHSHOP SCOPE & TERMINOLOGY GUIDE ━━━
+Use this language when describing work in the estimate output.
+
+CABLE SPECIFICATION:
+- "Cat6a U/FTP B2ca rated cable, meeting the requirements of ISO/IEC 11801 and EN 50173 for Class EA structured cabling"
+- "full support for PoE++ (802.3bt) power delivery" — relevant when APs or PoE devices are involved
+- "LSZH (Low Smoke Zero Halogen)" — use in schools/hospitals/public buildings
+- "B2ca fire rating" — standard for education and healthcare
+
+CABLE ROUTING / CONTAINMENT:
+- "installed concealed above the ceiling throughout the building"
+- "contained and supported using appropriate cable management methods including existing cable basket, cable ties both metal and plastic and metallic cable support devices"
+- "in accordance with manufacturer recommendations and EN 50174-2 pathways and spaces standards"
+- "Where cables pass through fire compartment walls or floors, all penetrations will be made good with appropriate fire-stopping materials to maintain the integrity of the fire barrier"
+- "high-level cable basket containment" — for above-ceiling/high-level runs
+- "surface trunking / dado trunking / skirting trunking" — for low-level runs
+
+TERMINATION:
+- Outlet end: "Excel Category 6A Screened Toolless Keystone Jack, housed in a single gang metal surface media box with an angled shutter faceplate"
+- Patch panel: "Excel 24-port unloaded keystone patch panel frames, installed in the communications cabinet"
+- "All patch panels will be clearly labelled with engraved Excel labels"
+
+TESTING:
+- "every cable run will be tested end-to-end using a calibrated cable tester to verify full compliance with TIA-568-C.2 / ISO/IEC 11801 Category 6A standards"
+- "Test results will be documented and provided to the client's IT team as part of the project handover pack"
+- "Any cable run that fails will be investigated and remediated at no additional cost prior to [works] commencing"
+
+AP / WIRELESS WORK:
+- "Termination and testing of the Cat6a data point at the AP location"
+- "Physical mounting of the AP onto the ceiling bracket"
+- "Connection of the AP to the structured cabling infrastructure via Cat6a patch lead"
+- "Documenting the serial and MAC address of each corresponding access point"
+- "Wireless site survey" (predictive survey before install, £400 flat rate)
+
+CABINET / COMMS ROOM WORK:
+- "Prior to removal of any equipment or patching, Switchshop will document all existing switch ports and associated patch panel ports"
+- "Removal of existing patching" / "removal of redundant patch leads"
+- "Cabinet reorganisation" / "structured re-patching" / "colour-coded patch cords aligned with VLAN and service identification requirements"
+- "Equipment migration with full port documentation to ensure service continuity"
+- "Cabinets will be left in a clean, organised and fully re-patched condition"
+- Cabinet consolidation: "two existing wall mounted communications cabinets... replaced with one new floor standing equipment cabinet"
+- "47U 800mm (W) x 800mm (D) floor standing equipment cabinet" — NHS standard (note: 1000mm depth not always suitable due to room size)
+- "42U 800mm (W) x 800mm (D) floor standing" — standard school/commercial upgrade
+- Cabinet accessories: plinth, internal cable tray, rack-mounted PDU, bonding kit, cage nuts and fixings
+
+STANDARD EXCLUSIONS (use in next steps / caveats):
+- "Any electrical works, mains power installation, or containment" (unless specified)
+- "Repair or making good of decorative finishes disturbed during installation beyond standard practice"
+- "The supply of any active hardware" (switches, routers, APs — priced separately)
+- "Network switch configuration, VLAN creation, and network commissioning" (physical install only unless specified)
+- "Moving client's furniture or equipment that requires special equipment or more than two people"
+- "Delay charges caused by third parties (builders, etc.)"
+
+STANDARD TERMS:
+- "All prices quoted exclude VAT"
+- "Payment is due 30 days from invoice"
+- "Prices for cabling systems valid for 60 days; active hardware prices must be agreed at time of order"
+- "Switchshop must be given free access during working hours; disruption or delays attributable to the client may result in additional charges"
+
+SCHOOL/EDUCATION ACCESS:
+- "All works will be carried out during school holiday periods only" (standard for education)
+- "Switchshop will liaise directly with the school's IT team to agree a programme of works prior to commencement"
+- Always flag holiday-only access in next steps for school jobs`;
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let conversationHistory = [];
+let isLoading = false;
+let stepCount = 0;
+const TOTAL_STEPS = 13;
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('printDate').textContent = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  setupInput();
+  checkAPIKey();
+  renderProgressSections(0);
+});
+
+function checkAPIKey() {
+  API_KEY = localStorage.getItem('ss_api_key') || '';
+  if (API_KEY) { startConversation(); }
+  else {
+    appendMsg('ai', `👋 Welcome to the Switchshop Pre-Survey Estimator!\n\nPlease enter your Anthropic API key to get started. It's stored only in your browser.\n\nGet one at **console.anthropic.com**`);
+    window._awaitKey = true;
+  }
+}
+
+function startConversation() {
+  window._awaitKey = false;
+  const greeting = `Hi! I'm going to walk you through a quick inquiry capture — I'll collect all the details we need for the client record and generate a budget estimate at the end.\n\nIt covers client info, project details, site access requirements, and the technical specifics for the estimate. Should take about 3–4 minutes.\n\nLet's start — **what's the company or organisation name, and who is the main contact?**`;
+  appendMsg('ai', greeting);
+  conversationHistory.push({ role: 'assistant', content: greeting });
+  document.getElementById('progressCard').classList.add('visible');
+  document.getElementById('estPlaceholder').style.display = 'none';
+  renderProgressSections(0);
+}
+
+// ═══════════════════════════════════════════
+// MESSAGING
+// ═══════════════════════════════════════════
+function setupInput() {
+  const inp = document.getElementById('chatInput');
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+  inp.addEventListener('input', () => { inp.style.height = 'auto'; inp.style.height = Math.min(inp.scrollHeight, 110) + 'px'; });
+}
+
+async function sendMessage() {
+  if (isLoading) return;
+  const inp = document.getElementById('chatInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = ''; inp.style.height = 'auto';
+
+  if (window._awaitKey) {
+    API_KEY = text.trim();
+    localStorage.setItem('ss_api_key', API_KEY);
+    appendMsg('user', '••••••••••••••••••••');
+    appendMsg('ai', '✅ API key saved. Starting your session…');
+    setTimeout(startConversation, 500);
+    return;
+  }
+
+  appendMsg('user', text);
+  conversationHistory.push({ role: 'user', content: text });
+  stepCount = Math.min(conversationHistory.filter(m => m.role === 'user').length, TOTAL_STEPS);
+  renderProgressSections(stepCount);
+  updatePill();
+  await callAI();
+}
+
+function sendQR(text) { if (isLoading) return; document.getElementById('chatInput').value = text; sendMessage(); }
+
+async function callAI() {
+  isLoading = true;
+  document.getElementById('sendBtn').disabled = true;
+  const tid = showTyping();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        system: SYSTEM_PROMPT,
+        messages: conversationHistory
+      })
+    });
+
+    removeTyping(tid);
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (res.status === 401) { localStorage.removeItem('ss_api_key'); appendMsg('ai', `❌ API key invalid. Click "↺ New Inquiry" to re-enter.`); }
+      else appendMsg('ai', `Sorry, something went wrong: ${err.error?.message || res.status}`);
+      return;
+    }
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    conversationHistory.push({ role: 'assistant', content: text });
+
+    const match = text.match(/```estimate\s*([\s\S]*?)```/);
+    if (match) {
+      try {
+        const est = JSON.parse(match[1]);
+        renderEstimate(est);
+        const clean = text.replace(/```estimate[\s\S]*?```/, '').trim();
+        if (clean) appendMsg('ai', clean);
+      } catch(e) { appendMsg('ai', text); }
+    } else {
+      appendMsg('ai', text);
+    }
+
+    stepCount = Math.min(conversationHistory.filter(m => m.role === 'user').length, TOTAL_STEPS);
+    renderProgressSections(stepCount);
+    updatePill();
+
+  } catch(e) {
+    removeTyping(tid);
+    appendMsg('ai', `Connection error: ${e.message}`);
+  }
+
+  isLoading = false;
+  document.getElementById('sendBtn').disabled = false;
+}
+
+// ═══════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════
+function appendMsg(role, text, qrs = []) {
+  const msgs = document.getElementById('chatMessages');
+  const wrap = document.createElement('div');
+  wrap.className = `msg ${role}`;
+  const av = document.createElement('div');
+  av.className = `msg-avatar ${role}`;
+  av.textContent = role === 'ai' ? 'SS' : '👤';
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+  if (qrs.length) {
+    const div = document.createElement('div'); div.className = 'quick-replies';
+    qrs.forEach(r => { const btn = document.createElement('button'); btn.className = 'qr-btn'; btn.textContent = r; btn.onclick = () => sendQR(r); div.appendChild(btn); });
+    bubble.appendChild(div);
+  }
+  wrap.appendChild(av); wrap.appendChild(bubble); msgs.appendChild(wrap);
+  requestAnimationFrame(() => { msgs.scrollTop = msgs.scrollHeight; });
+  setTimeout(() => { msgs.scrollTop = msgs.scrollHeight; }, 100);
+}
+
+function showTyping() {
+  const msgs = document.getElementById('chatMessages');
+  const id = 'typ-' + Date.now();
+  const w = document.createElement('div'); w.id = id; w.className = 'msg ai';
+  w.innerHTML = `<div class="msg-avatar ai">SS</div><div class="msg-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
+  msgs.appendChild(w);
+  requestAnimationFrame(() => { msgs.scrollTop = msgs.scrollHeight; });
+  setTimeout(() => { msgs.scrollTop = msgs.scrollHeight; }, 100);
+  return id;
+}
+function removeTyping(id) { document.getElementById(id)?.remove(); }
+
+function renderProgressSections(completedCount) {
+  const container = document.getElementById('progSections');
+  container.innerHTML = '';
+  let stepIndex = 0;
+  SECTIONS.forEach(section => {
+    const group = document.createElement('div'); group.className = 'section-group';
+    const title = document.createElement('div'); title.className = 'section-group-title'; title.textContent = section.title;
+    const steps = document.createElement('div'); steps.className = 'prog-steps';
+    section.steps.forEach(label => {
+      const div = document.createElement('div');
+      let cls = 'prog-step';
+      if (stepIndex < completedCount) cls += ' done';
+      else if (stepIndex === completedCount) cls += ' active';
+      div.className = cls;
+      div.innerHTML = `<div class="prog-dot"></div><span>${stepIndex < completedCount ? '✓ ' : ''}${label}</span>`;
+      steps.appendChild(div);
+      stepIndex++;
+    });
+    group.appendChild(title); group.appendChild(steps); container.appendChild(group);
+  });
+}
+
+function updatePill() {
+  const pill = document.getElementById('progressPill');
+  if (stepCount > 0) { pill.textContent = `${stepCount} / ${TOTAL_STEPS}`; pill.classList.add('visible'); }
+}
+
+// ═══════════════════════════════════════════
+// ESTIMATE RENDER
+// ═══════════════════════════════════════════
+function renderEstimate(d) {
+  document.getElementById('estPlaceholder').style.display = 'none';
+  document.getElementById('progressCard').style.display = 'none';
+  document.getElementById('estResult').classList.add('visible');
+  document.getElementById('printBtn').style.display = 'flex';
+  document.getElementById('newBtn').classList.add('visible');
+  document.getElementById('estStatus').textContent = 'Inquiry complete ✓';
+  document.getElementById('printDate').textContent = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+
+  const fmt = n => '£' + Math.round(n).toLocaleString('en-GB');
+
+  // Client info card
+  if (d.clientInfo) {
+    const ci = d.clientInfo;
+    const card = document.getElementById('clientCard');
+    card.style.display = 'block';
+    const rows = document.getElementById('clientRows');
+    rows.innerHTML = '';
+    const fields = [
+      ['Contact', ci.contactName],
+      ['Email', ci.contactEmail],
+      ['Phone', ci.contactPhone],
+      ['Sector', ci.sector],
+      ['Address', ci.address],
+      ['Timeline', ci.timeline],
+      ['Floor Plans', ci.floorPlans ? '✓ Available' : '✗ Not available'],
+      ['Existing Infrastructure', ci.existingInfrastructure],
+    ];
+    fields.forEach(([label, val]) => {
+      if (!val) return;
+      const r = document.createElement('div'); r.className = 'client-row';
+      r.innerHTML = `<span class="cr-label">${label}</span><span class="cr-value">${val}</span>`;
+      rows.appendChild(r);
+    });
+  }
+
+  // Job headline
+  document.getElementById('rCustomer').textContent = [d.customer, d.site].filter(Boolean).join(' · ');
+  document.getElementById('rJobTitle').textContent = d.jobTitle || '—';
+  document.getElementById('rType').textContent = d.installationType || '—';
+  document.getElementById('rCost').textContent = fmt(d.costMid);
+  document.getElementById('rCostRange').textContent = `Range: ${fmt(d.costLow)} – ${fmt(d.costHigh)}`;
+  document.getElementById('rDays').textContent = d.durationMid || '—';
+  document.getElementById('rDaysRange').textContent = `${d.durationLow} – ${d.durationHigh}`;
+
+  // Confidence
+  const pct = Math.min(100, Math.max(10, d.confidence || 65));
+  document.getElementById('confPct').textContent = pct + '%';
+  setTimeout(() => { document.getElementById('confFill').style.width = pct + '%'; }, 400);
+
+  // Technical details
+  const rows = document.getElementById('rDetails'); rows.innerHTML = '';
+  (d.details || []).forEach(item => {
+    const r = document.createElement('div'); r.className = 'detail-row';
+    r.innerHTML = `<span class="dr-label">${item.label}</span><span class="dr-value">${item.value}</span>`;
+    rows.appendChild(r);
+  });
+
+  // Access flags
+  if (d.access) {
+    const a = d.access;
+    const flags = [];
+    if (a.dbsRequired) flags.push({ text: '⚠ DBS Required', amber: true });
+    if (a.workingHours && a.workingHours.toLowerCase() !== 'standard') flags.push({ text: '⏰ ' + a.workingHours, amber: true });
+    if (a.parking) flags.push({ text: '✓ Parking available', amber: false });
+    if (a.accessNotes) flags.push({ text: '🔒 ' + a.accessNotes, amber: true });
+    if (flags.length) {
+      document.getElementById('accessBlock').style.display = 'block';
+      const container = document.getElementById('accessFlags'); container.innerHTML = '';
+      flags.forEach(f => {
+        const span = document.createElement('span');
+        span.className = 'flag' + (f.amber ? '' : ' green');
+        span.textContent = f.text;
+        container.appendChild(span);
+      });
+    }
+  }
+
+  // Note/caveat
+  document.getElementById('rNote').innerHTML = `<strong>⚠ Note:</strong> ${d.caveat || 'Budget estimate only. Formal quotation following site survey may vary.'}`;
+
+  // Next steps
+  if (d.nextSteps && d.nextSteps.length) {
+    document.getElementById('nextStepsCard').style.display = 'block';
+    const list = document.getElementById('nextStepsList'); list.innerHTML = '';
+    d.nextSteps.forEach(step => {
+      const item = document.createElement('div'); item.className = 'ns-item';
+      item.innerHTML = `<div class="ns-check"></div><span>${step}</span>`;
+      list.appendChild(item);
+    });
+  }
+}
+
+// ═══════════════════════════════════════════
+// RESET
+// ═══════════════════════════════════════════
+function resetConversation() {
+  conversationHistory = []; stepCount = 0;
+  document.getElementById('chatMessages').innerHTML = '';
+  document.getElementById('estResult').classList.remove('visible');
+  document.getElementById('estPlaceholder').style.display = 'flex';
+  document.getElementById('progressCard').classList.remove('visible');
+  document.getElementById('progressCard').style.display = '';
+  document.getElementById('printBtn').style.display = 'none';
+  document.getElementById('newBtn').classList.remove('visible');
+  document.getElementById('estStatus').textContent = 'Awaiting details…';
+  document.getElementById('progressPill').classList.remove('visible');
+  document.getElementById('confFill').style.width = '0%';
+  document.getElementById('clientCard').style.display = 'none';
+  document.getElementById('accessBlock').style.display = 'none';
+  document.getElementById('nextStepsCard').style.display = 'none';
+  renderProgressSections(0);
+  if (API_KEY) startConversation(); else checkAPIKey();
+}
+</script>
+</body>
+</html>
